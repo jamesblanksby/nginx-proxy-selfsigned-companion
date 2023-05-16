@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+
+source /app/function.sh
+
+function update_cert {
+    local cid="${1:?}"
+    local -n host_array="SELFSIGNED_${cid}_HOSTS"
+
+    for host in "${host_array[@]}"; do
+        if [[ ! -f "/etc/nginx/certs/$host.crt" && ! -f "/etc/nginx/certs/$host.key" ]]; then
+            cat << EOF > "/etc/nginx/certs/$host.ext"
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+
+[req_distinguished_name]
+commonName = $host
+
+[v3_req]
+basicConstraints = CA:FALSE
+keyUsage = dataEncipherment, digitalSignature, keyEncipherment, nonRepudiation
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = $host
+EOF
+
+            echo "Generating self-signed certificate for $host..."
+            openssl req \
+                -new -sha256 -nodes \
+                -newkey rsa:2048 \
+                -subj "/CN=$host" \
+                -keyout "/etc/nginx/certs/$host.key" \
+                -out "/etc/nginx/certs/$host.csr"
+            openssl x509 \
+                -req -in "/etc/nginx/certs/$host.csr" -sha256 -days "$SELFSIGNED_EXPIRY" \
+                -CA "/etc/nginx/certs/ca.crt" -CAkey "/etc/nginx/certs/ca.key" -CAcreateserial \
+                -extfile "/etc/nginx/certs/$host.ext" \
+                -out "/etc/nginx/certs/$host.crt"
+
+            rm "/etc/nginx/certs/$host.ext" "/etc/nginx/certs/$host.csr" "/etc/nginx/certs/ca.srl"
+        fi
+    done
+}
+
+function update_certs {
+    if [[ -f /tmp/selfsigned_service_data ]]; then
+        # shellcheck disable=SC1091
+        source /tmp/selfsigned_service_data
+    else
+        echo "Warning: /tmp/selfsigned_service_data not found, skipping data from containers."
+    fi
+
+    for cid in "${SELFSIGNED_CONTAINERS[@]}"; do
+        update_cert "$cid"
+    done
+
+    reload_nginx
+}
+
+update_certs "$@"

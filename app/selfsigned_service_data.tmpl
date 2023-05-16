@@ -1,0 +1,23 @@
+SELFSIGNED_CONTAINERS=(
+    {{ range $hosts, $containers := groupBy $ "Env.SELFSIGNED_HOST" }}
+        {{ if trim $hosts }}
+            {{ range $container := $containers }}
+                {{- "\t" }}'{{ printf "%.12s" $container.ID }}'
+            {{ end }}
+        {{ end }}
+    {{ end }}
+)
+
+{{ range $hosts, $containers := groupBy $ "Env.SELFSIGNED_HOST" }}
+    {{ $hosts := trimSuffix "," $hosts }}
+    {{ range $container := $containers }}
+        {{ $cid := printf "%.12s" $container.ID }}
+        {{- "\n" }}SELFSIGNED_{{ $cid }}_HOSTS=( 
+            {{- range $host := split $hosts "," }}
+                {{- $host := trim $host }}
+                {{- $host := trimSuffix "." $host -}}
+                '{{ $host }}'{{ " " }} 
+            {{- end -}}
+        )
+    {{ end }}
+{{ end }}

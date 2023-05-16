@@ -1,0 +1,29 @@
+version: "3"
+services:
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./certs:/etc/nginx/certs
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    container_name: nginx-proxy
+  nginx-proxy-selfsigned:
+    build:
+      context: .
+    volumes_from: 
+      - nginx-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - nginx-proxy
+  proxied-app:
+    image: nginx
+    environment:
+      - VIRTUAL_HOST=local.example.com
+      - SELFSIGNED_HOST=local.example.com
+networks:
+  default:
+    name: nginx-proxy
+    external: true
