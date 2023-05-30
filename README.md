@@ -7,7 +7,7 @@
 
 ### Features
 * Automated creation of self-signed certificates using [**openssl**](https://github.com/openssl/openssl).
-* Startup creation of a certificate authority (CA) to trust your self-signed certificates.
+* Startup creation of a certificate authority (CA) to [trust your self-signed certificates](#trust-self-signed-certificates).
 * Automated update and reload of nginx config on certificate creation.
 * Configurable certificate [validaity period](#certificate-expiry).
 
@@ -102,6 +102,45 @@ $ docker run --detach \
     --volumes-from nginx-proxy \
     thisismyengine/nginx-proxy-selfsigned-companion
 ```
+
+## Trust self-signed certificates
+
+By default, when you use a self-signed certificate, web browsers will not consider it trustworthy and will notify you about a possible security risk. To address this, you need to import your certificate authority (CA) certificate, which is located in the `certs` directory. The process of importing the certificate can vary depending on your operating system and web browser.
+
+### Operating System
+
+#### macOS
+
+1. In the Keychain Access app, select the login keychain.
+2. Drag the `ca.crt` file onto the Keychain Access app.
+3. Double-click a certificate.
+4. Next to "Trust", click the arrow to display the trust policies for the certificate.
+5. Choose "Always Trust" when using this certificate.
+
+#### Linux
+
+```shell
+$ sudo apt-get install -y ca-certificates
+$ sudo cp certs/ca.crt /usr/local/share/ca-certificates
+$ sudo update-ca-certificates
+```
+
+### Browser
+
+#### Firefox
+
+1. Go to Preferences → Privacy & Security → Certificates or `about:preferences#privacy`.
+2. Click "View Certificates".
+3. Select the "Authorities" tab and click "Import…".
+4. Choose your `ca.crt` certificate file.
+5. Check "Trust the CA to identify websites" and click "OK".
+
+#### Chrome
+
+1. Go to Security → Manage Certificates or `chrome://settings/certificates`.
+2. Select the "Authorities" tab and click "Import…".
+3. Click "Browse…" choose your `ca.crt` certificate file.
+4. Check "Trust this certificate for identifying websites" and click "OK".
 
 ## Certificate expiry
 
