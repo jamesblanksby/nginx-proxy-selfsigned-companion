@@ -9,18 +9,9 @@ function update_cert {
     for host in "${host_array[@]}"; do
         if [[ ! -f "/etc/nginx/certs/$host.crt" && ! -f "/etc/nginx/certs/$host.key" ]]; then
             cat << EOF > "/etc/nginx/certs/$host.ext"
-[req]
-distinguished_name = req_distinguished_name
-req_extensions = v3_req
-
-[req_distinguished_name]
-commonName = $host
-
-[v3_req]
-basicConstraints = CA:FALSE
-keyUsage = dataEncipherment, digitalSignature, keyEncipherment, nonRepudiation
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
 subjectAltName = @alt_names
-
 [alt_names]
 DNS.1 = $host
 EOF
