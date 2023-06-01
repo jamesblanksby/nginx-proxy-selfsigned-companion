@@ -44,7 +44,7 @@ $ docker run --detach \
     --name nginx-proxy-selfsigned \
     --volumes-from nginx-proxy \
     --volume /var/run/docker.sock:/var/run/docker.sock:ro \
-    thisismyengine/nginx-proxy-selfsigned-companion
+    jamesblanksby/nginx-proxy-selfsigned-companion
 ```
 
 The host docker socket has to be bound inside this container too, this time to `/var/run/docker.sock`.
@@ -87,7 +87,7 @@ $ docker run --detach \
     --name nginx-proxy-selfsigned \
     [...]
     --env "NGINX_PROXY_CONTAINER=unique-nginx-proxy" \
-    thisismyengine/nginx-proxy-selfsigned-companion
+    jamesblanksby/nginx-proxy-selfsigned-companion
 ```
 
 > **Note**  
@@ -100,7 +100,7 @@ $ docker run --detach \
     --name nginx-proxy-selfsigned \
     [...]
     --volumes-from nginx-proxy \
-    thisismyengine/nginx-proxy-selfsigned-companion
+    jamesblanksby/nginx-proxy-selfsigned-companion
 ```
 
 ## Trust self-signed certificates
