@@ -2,7 +2,7 @@
 
 **selfsigned-companion** is a lightweight certificate companion container for [**nginx-proxy**](https://github.com/nginx-proxy/nginx-proxy) heavily inspired by [**acme-companion**](https://github.com/nginx-proxy/acme-companion).
 
-> **Warning**  
+> [!WARNING]
 > The certificates generated using this container should only be used for locally hosted projects.
 
 ### Features
@@ -63,7 +63,7 @@ $ docker run --detach \
     nginx
 ```
 
-> **Note**  
+> [!NOTE]
 > In this example `SELFSIGNED_HOST` covers all subdomains (`*.local.example.com`) so including all your FQDNs is not required.
 
 The containers being proxied must expose the port to be proxied, either by using the `EXPOSE` directive in their Dockerfile or by using the `--expose` flag to `docker run` or `docker create`.
@@ -90,7 +90,7 @@ $ docker run --detach \
     jamesblanksby/nginx-proxy-selfsigned-companion
 ```
 
-> **Note**  
+> [!NOTE]
 > The environment variable `NGINX_PROXY_CONTAINER` defaults to `nginx-proxy` so only include if your **nginx-proxy** container is named differently. 
 
 ### `volumes-from` method
