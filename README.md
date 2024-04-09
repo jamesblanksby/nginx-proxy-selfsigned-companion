@@ -1,4 +1,4 @@
-# selfsigned-companion
+# 🔐 selfsigned-companion
 
 **selfsigned-companion** is a lightweight certificate companion container for [**nginx-proxy**](https://github.com/nginx-proxy/nginx-proxy) heavily inspired by [**acme-companion**](https://github.com/nginx-proxy/acme-companion).
 
