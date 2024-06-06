@@ -52,6 +52,25 @@ function upsert_cert {
     done
 }
 
+function cleanup_certs {
+    local existing_hosts=()
+    
+    for cid in "${SELFSIGNED_CONTAINERS[@]}"; do
+        local -n host_array="SELFSIGNED_${cid}_HOSTS"
+        for host in "${host_array[@]}"; do
+            existing_hosts+=("$host")
+        done
+    done
+
+    for cert in "$CERT_PATH"/*.crt; do
+        local host=$(basename "$cert" .crt)
+        if [[ ! " ${existing_hosts[@]} " =~ " ${host} " ]]; then
+            echo "Cleaning up certificate for $host."
+            rm -f "$CERT_PATH/$host.crt" "$CERT_PATH/$host.key"
+        fi
+    done
+}
+
 function upsert_certs {
     if [[ -f /tmp/selfsigned_service_data ]]; then
         # shellcheck disable=SC1091
@@ -60,11 +79,15 @@ function upsert_certs {
         echo "Warning: /tmp/selfsigned_service_data not found, skipping data from containers."
     fi
 
+    local should_reload_nginx='false'
+
     for cid in "${SELFSIGNED_CONTAINERS[@]}"; do
         upsert_cert "$cid"
     done
 
-    reload_nginx
+    cleanup_certs && should_reload_nginx='true'
+
+    [[ "$should_reload_nginx" == 'true' ]] && reload_nginx
 }
 
 upsert_certs "$@"
