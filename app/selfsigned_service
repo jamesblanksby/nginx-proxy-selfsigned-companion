@@ -2,39 +2,57 @@
 
 source /app/function.sh
 
-function update_cert {
-    local cid="${1:?}"
-    local -n host_array="SELFSIGNED_${cid}_HOSTS"
+CERT_PATH="/etc/nginx/certs"
 
-    for host in "${host_array[@]}"; do
-        if [[ ! -f "/etc/nginx/certs/$host.crt" && ! -f "/etc/nginx/certs/$host.key" ]]; then
-            cat << EOF > "/etc/nginx/certs/$host.ext"
+function create_cert_ext {
+    local host="${1:?}"
+
+    cat << EOF > "$CERT_PATH/$host.ext"
 authorityKeyIdentifier=keyid,issuer
 basicConstraints=CA:FALSE
 subjectAltName = @alt_names
 [alt_names]
 DNS.1 = $host
 EOF
+}
 
+function upsert_cert {
+    local cid="${1:?}"
+    local -n host_array="SELFSIGNED_${cid}_HOSTS"
+
+    for host in "${host_array[@]}"; do
+        local cert_file="$CERT_PATH/$host.crt"
+        local key_file="$CERT_PATH/$host.key"
+        local csr_file="$CERT_PATH/$host.csr"
+        local ext_file="$CERT_PATH/$host.ext"
+
+        local should_generate_cert='false'
+
+        if [[ ! -f "$cert_file" || ! -f "$key_file" ]] || ! openssl x509 -checkend 0 -noout -in "$cert_file"; then
+            should_generate_cert='true'
+            [[ -f "$cert_file" ]] && echo "Certificate for $host has expired and will be regenerated."
+        fi
+
+        if [[ "$should_generate_cert" == 'true' ]]; then
+            create_cert_ext "$host"
+            
             echo "Generating self-signed certificate for $host..."
-            openssl req \
-                -new -sha256 -nodes \
-                -newkey rsa:2048 \
-                -subj "/CN=$host" \
-                -keyout "/etc/nginx/certs/$host.key" \
-                -out "/etc/nginx/certs/$host.csr"
-            openssl x509 \
-                -req -in "/etc/nginx/certs/$host.csr" -sha256 -days "$SELFSIGNED_EXPIRY" \
-                -CA "/etc/nginx/certs/ca.crt" -CAkey "/etc/nginx/certs/ca.key" -CAcreateserial \
-                -extfile "/etc/nginx/certs/$host.ext" \
-                -out "/etc/nginx/certs/$host.crt"
+            if ! openssl req -new -sha256 -nodes -newkey rsa:2048 -subj "/CN=$host" -keyout "$key_file" -out "$csr_file"; then
+                echo "Failed to generate certificate request for $host."
+                continue
+            fi
+            
+            if ! openssl x509 -req -in "$csr_file" -sha256 -days "$SELFSIGNED_EXPIRY" -CA "$CERT_PATH/ca.crt" -CAkey "$CERT_PATH/ca.key" -CAcreateserial -extfile "$ext_file" -out "$cert_file"; then
+                echo "Failed to sign certificate for $host."
+                continue
+            fi
 
-            rm "/etc/nginx/certs/$host.ext" "/etc/nginx/certs/$host.csr" "/etc/nginx/certs/ca.srl"
+            rm -f "$ext_file" "$csr_file" "$CERT_PATH/ca.srl"
         fi
     done
 }
 
-function update_certs {
+function upsert_certs {
     if [[ -f /tmp/selfsigned_service_data ]]; then
         # shellcheck disable=SC1091
         source /tmp/selfsigned_service_data
@@ -43,10 +61,10 @@ function update_certs {
     fi
 
     for cid in "${SELFSIGNED_CONTAINERS[@]}"; do
-        update_cert "$cid"
+        upsert_cert "$cid"
     done
 
     reload_nginx
 }
 
-update_certs "$@"
+upsert_certs "$@"
