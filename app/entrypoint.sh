@@ -42,7 +42,7 @@ function check_certificate_authority {
         echo "Generating certificate authority..."
         openssl genrsa -out "/etc/nginx/certs/ca.key" 2048
         openssl req -x509 \
-            -newkey rsa:4096 -sha256 -nodes -days $SELFSIGNED_EXPIRY \
+            -newkey rsa:4096 -sha256 -nodes -days 3650 \
             -subj "/CN=$cn" \
             -keyout "/etc/nginx/certs/ca.key" \
             -out "/etc/nginx/certs/ca.crt"
