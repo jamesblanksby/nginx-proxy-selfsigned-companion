@@ -62,8 +62,12 @@ function cleanup_certs {
         done
     done
 
-    for cert in "$CERT_PATH"/*.crt; do
-        local host=$(basename "$cert" .crt)
+    for path in "$CERT_PATH"/*.crt; do
+        local cert=$(basename "$path")
+        if [[ "$cert" == "ca.crt" ]]; then
+            continue
+        fi
+        local host="${cert%.*}"
         if [[ ! " ${existing_hosts[@]} " =~ " ${host} " ]]; then
             echo "Cleaning up certificate for $host."
             rm -f "$CERT_PATH/$host.crt" "$CERT_PATH/$host.key"
