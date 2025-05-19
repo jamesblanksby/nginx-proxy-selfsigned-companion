@@ -62,6 +62,7 @@ function cleanup_certs {
         done
     done
 
+    shopt -s nullglob
     for path in "$CERT_PATH"/*.crt; do
         local cert=$(basename "$path")
         if [[ "$cert" == "ca.crt" ]]; then
@@ -73,6 +74,7 @@ function cleanup_certs {
             rm -f "$CERT_PATH/$host.crt" "$CERT_PATH/$host.key"
         fi
     done
+    shopt -u nullglob
 }
 
 function upsert_certs {
