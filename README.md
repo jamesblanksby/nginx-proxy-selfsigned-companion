@@ -129,8 +129,8 @@ $ sudo update-ca-certificates
 
 #### Firefox
 
-1. Go to Preferences → Privacy & Security → Certificates or `about:preferences#privacy`.
-2. Click "View Certificates".
+1. Go to Preferences → Privacy & Security → Certificates or `about:preferences#connectionSecurity`.
+2. Click "Manage Certificates".
 3. Select the "Authorities" tab and click "Import…".
 4. Choose your `ca.crt` certificate file.
 5. Check "Trust the CA to identify websites" and click "OK".
