@@ -121,7 +121,7 @@ By default, when you use a self-signed certificate, web browsers will not consid
 
 ```shell
 $ sudo apt-get install -y ca-certificates
-$ sudo cp certs/ca.crt /usr/local/share/ca-certificates
+$ sudo cp certs/ca/ca.crt /usr/local/share/ca-certificates
 $ sudo update-ca-certificates
 ```
 

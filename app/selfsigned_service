@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 
-source /app/function.sh
+source /app/helper.sh
 
-CERT_PATH="/etc/nginx/certs"
-
-function create_cert_ext {
+function create_ext {
     local host="${1:?}"
 
     cat << EOF > "$CERT_PATH/$host.ext"
@@ -16,68 +14,106 @@ DNS.1 = $host
 EOF
 }
 
-function upsert_cert {
+function expired_cert {
+    local crt="${1:?}"
+
+    ! openssl x509 -checkend 0 -noout -in "$crt" >/dev/null 2>&1
+}
+
+function generate_cert {
+    local host="${1:?}"
+    local crt="$CERT_PATH/$host.crt"
+    local key="$CERT_PATH/$host.key"
+    local csr="$CERT_PATH/$host.csr"
+    local ext="$CERT_PATH/$host.ext"
+    local srl="$CERT_PATH/$host.srl"
+
+    create_ext "$host"
+
+    echo "Generating self-signed certificate for $host..."
+
+    if ! openssl req \
+        -new \
+        -sha256 \
+        -nodes \
+        -newkey rsa:2048 \
+        -subj "/CN=$host" \
+        -keyout "$key" \
+        -out "$csr";
+    then
+        echo "Failed to generate certificate request for $host."
+        return 1
+    fi
+
+    if ! openssl x509 \
+        -req \
+        -in "$csr" \
+        -sha256 \
+        -days "$SELFSIGNED_EXPIRY" \
+        -CA "$CERT_PATH/ca/ca.crt" \
+        -CAkey "$CERT_PATH/ca/ca.key" \
+        -CAcreateserial \
+        -extfile "$ext" \
+        -out "$crt";
+    then
+        echo "Failed to sign certificate for $host."
+        return 1
+    fi
+
+    rm -f "$ext" "$csr" "$srl"
+}
+
+function cleanup_cert {
+    local host="${1:?}"
+
+    local crt="$CERT_PATH/$host.crt"
+    local key="$CERT_PATH/$host.key"
+
+    echo "Cleaning up certificate for $host."
+    rm -f "$crt" "$key"
+}
+
+function process_cert {
     local cid="${1:?}"
-    local -n host_array="SELFSIGNED_${cid}_HOSTS"
+    local -n hosts="SELFSIGNED_${cid}_HOSTS"
 
-    for host in "${host_array[@]}"; do
-        local cert_file="$CERT_PATH/$host.crt"
-        local key_file="$CERT_PATH/$host.key"
-        local csr_file="$CERT_PATH/$host.csr"
-        local ext_file="$CERT_PATH/$host.ext"
+    for host in "${hosts[@]}"; do
+        local crt="$CERT_PATH/$host.crt"
+        local key="$CERT_PATH/$host.key"
 
-        local should_generate_cert='false'
-
-        if [[ ! -f "$cert_file" || ! -f "$key_file" ]] || ! openssl x509 -checkend 0 -noout -in "$cert_file"; then
-            should_generate_cert='true'
-            [[ -f "$cert_file" ]] && echo "Certificate for $host has expired and will be regenerated."
-        fi
-
-        if [[ "$should_generate_cert" == 'true' ]]; then
-            create_cert_ext "$host"
-            
-            echo "Generating self-signed certificate for $host..."
-            if ! openssl req -new -sha256 -nodes -newkey rsa:2048 -subj "/CN=$host" -keyout "$key_file" -out "$csr_file"; then
-                echo "Failed to generate certificate request for $host."
-                continue
-            fi
-            
-            if ! openssl x509 -req -in "$csr_file" -sha256 -days "$SELFSIGNED_EXPIRY" -CA "$CERT_PATH/ca.crt" -CAkey "$CERT_PATH/ca.key" -CAcreateserial -extfile "$ext_file" -out "$cert_file"; then
-                echo "Failed to sign certificate for $host."
-                continue
-            fi
-
-            rm -f "$ext_file" "$csr_file" "$CERT_PATH/ca.srl"
+        if [[ ! -f "$crt" || ! -f "$key" ]] || expired_cert "$crt"; then
+            [[ -f "$crt" ]] && echo "Certificate for $host has expired and will be regenerated."
+            generate_cert "$host"
         fi
     done
 }
 
 function cleanup_certs {
     local existing_hosts=()
-    
+
     for cid in "${SELFSIGNED_CONTAINERS[@]}"; do
-        local -n host_array="SELFSIGNED_${cid}_HOSTS"
-        for host in "${host_array[@]}"; do
+        local -n hosts="SELFSIGNED_${cid}_HOSTS"
+
+        for host in "${hosts[@]}"; do
             existing_hosts+=("$host")
         done
     done
 
     shopt -s nullglob
+
     for path in "$CERT_PATH"/*.crt; do
-        local cert=$(basename "$path")
-        if [[ "$cert" == "ca.crt" ]]; then
-            continue
-        fi
-        local host="${cert%.*}"
-        if [[ ! " ${existing_hosts[@]} " =~ " ${host} " ]]; then
-            echo "Cleaning up certificate for $host."
-            rm -f "$CERT_PATH/$host.crt" "$CERT_PATH/$host.key"
+        local host="${path##*/}"
+        host="${host%.crt}"
+
+        if [[ ! " ${existing_hosts[*]} " =~ " ${host} " ]] && expired_cert "$path"; then
+            cleanup_cert "$host"
         fi
     done
+
     shopt -u nullglob
 }
 
-function upsert_certs {
+function process_certs {
     if [[ -f /tmp/selfsigned_service_data ]]; then
         # shellcheck disable=SC1091
         source /tmp/selfsigned_service_data
@@ -88,12 +124,14 @@ function upsert_certs {
     local should_reload_nginx='false'
 
     for cid in "${SELFSIGNED_CONTAINERS[@]}"; do
-        upsert_cert "$cid"
+        process_cert "$cid"
     done
 
     cleanup_certs && should_reload_nginx='true'
 
     [[ "$should_reload_nginx" == 'true' ]] && reload_nginx
+
+    reload_nginx
 }
 
-upsert_certs "$@"
+process_certs "$@"

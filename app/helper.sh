@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+CERT_PATH="/etc/nginx/certs"
+
 function get_self_cid {
     local self_cid=""
 

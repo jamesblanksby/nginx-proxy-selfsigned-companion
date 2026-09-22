@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-source /app/function.sh
+source /app/helper.sh
 
 function check_docker_socket {
     if [[ $DOCKER_HOST == unix://* ]]; then
@@ -38,14 +38,14 @@ function check_writable_directory {
 function check_certificate_authority {
     local cn="nginx-proxy-selfsigned-companion"
 
-    if [[ ! -f "/etc/nginx/certs/ca.crt" && ! -f "/etc/nginx/certs/ca.key" ]]; then
+    if [[ ! -f "$CERT_PATH/ca/ca.crt" && ! -f "$CERT_PATH/ca/ca.key" ]]; then
         echo "Generating certificate authority..."
-        openssl genrsa -out "/etc/nginx/certs/ca.key" 2048
+        openssl genrsa -out "$CERT_PATH/ca/ca.key" 2048
         openssl req -x509 \
             -newkey rsa:4096 -sha256 -nodes -days 3650 \
             -subj "/CN=$cn" \
-            -keyout "/etc/nginx/certs/ca.key" \
-            -out "/etc/nginx/certs/ca.crt"
+            -keyout "$CERT_PATH/ca/ca.key" \
+            -out "$CERT_PATH/ca/ca.crt"
     fi
 }
 
@@ -58,7 +58,7 @@ if [[ "$*" == "/bin/bash /app/start.sh" ]]; then
         echo -e "\t- Set the NGINX_PROXY_CONTAINER env var on the selfsigned-companion container to the name of the nginx-proxy container." >&2
         exit 1
     fi
-    check_writable_directory "/etc/nginx/certs"
+    check_writable_directory "$CERT_PATH"
     check_certificate_authority
     reload_nginx
 fi
